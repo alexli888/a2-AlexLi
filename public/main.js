@@ -56,8 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         body: JSON.stringify(taskData)
                     });
                     if (response.ok) {
-                        resetFormMode();
-                        await loadTasks();
+                        resetFormMode(); // Always close form first
+                        await loadTasks(); // Then reload tasks
                     }
                 } else {
                     // Add new task
@@ -70,8 +70,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
 
                     if (response.ok) {
-                        form.reset();
-                        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+                        resetFormMode(); // Always close form after add
                         await loadTasks();
                     }
                 }
@@ -135,18 +134,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Display all tasks in table
     function displayAllTasks(tasks) {
         if (!tasksTableBody) return; // Guard clause for results page
-        
         tasksTableBody.innerHTML = '';
-        
         if (tasks.length === 0) {
             const row = tasksTableBody.insertRow();
             const cell = row.insertCell(0);
             cell.colSpan = 5;
             cell.textContent = 'No tasks found';
             cell.style.textAlign = 'center';
+            // Always hide form if not editing
+            const form = getTaskForm();
+            if (form && !editMode) form.style.display = 'none';
             return;
         }
-
         tasks.forEach(task => {
             const row = tasksTableBody.insertRow();
             row.innerHTML = `
@@ -155,18 +154,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 <td>${task.creation_date}</td>
                 <td>${task.deadline}</td>
                 <td>
-                    <button class="edit-btn" data-id="${task.id}">Edit</button>
-                    <button class="delete-btn" onclick="deleteTask(${task.id})">Delete</button>
+                    <button class="edit-btn" data-id="${task._id}">Edit</button>
+                    <button class="delete-btn" onclick="deleteTask('${task._id}')">Delete</button>
                 </td>
             `;
         });
-
         // Attach edit event listeners
         const editButtons = tasksTableBody.querySelectorAll('.edit-btn');
         editButtons.forEach(btn => {
             btn.addEventListener('click', function() {
                 const id = btn.getAttribute('data-id');
-                const task = tasks.find(t => t.id == id);
+                const task = tasks.find(t => String(t._id) === String(id));
                 const form = getTaskForm();
                 const fields = getFormFields();
                 if (task && form && fields.task && fields.priority && fields.creation_date) {
@@ -174,7 +172,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     fields.priority.value = task.priority;
                     fields.creation_date.value = task.creation_date;
                     editMode = true;
-                    editTaskId = task.id;
+                    editTaskId = String(task._id);
                     if (fields.submitBtn) fields.submitBtn.textContent = 'Update Task';
                     // Show form if on results page
                     if (window.location.pathname === '/results') {
@@ -185,12 +183,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             });
         });
-
-        // Hide edit form by default on results page
-        if (window.location.pathname === '/results') {
-            const form = getTaskForm();
-            if (form && !editMode) form.style.display = 'none';
-        }
+        // Always hide form if not editing
+        const form = getTaskForm();
+        if (form && !editMode) form.style.display = 'none';
     }
 
     function resetFormMode() {
